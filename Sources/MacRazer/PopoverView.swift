@@ -32,6 +32,7 @@ struct PopoverView: View {
     @State private var newProfileName = ""
     @State private var dpiValue: Double = 1600
     @State private var brightnessValue: Double = 100
+    @State private var dockBrightnessValue: Double = 100
     /// Local mirror of `controller.lightingColor` — only because `ColorPickerPage` needs a
     /// `Binding<Color>`. The controller's published value is the source of truth (lighting
     /// state is device-confirmed there); this follows it via `onChange`.
@@ -154,6 +155,7 @@ struct PopoverView: View {
                 dpiCard
                 pollCard
                 if controller.deviceHasLighting { lightingCard } // hidden for no-LED mice (e.g. Atheris)
+                dockCard
             }
             .disabled(!controller.connected)
             .opacity(controller.connected ? 1 : 0.45)
@@ -171,12 +173,14 @@ struct PopoverView: View {
         .onAppear {
             if controller.dpi != 0 { dpiValue = Double(controller.dpi) }
             brightnessValue = Double(controller.brightness)
+            dockBrightnessValue = Double(controller.dockBrightness)
             loadCustomDPI()
             color = controller.lightingColor.swiftUIColor
         }
         .onChange(of: controller.lightingColor) { _, new in color = new.swiftUIColor }
         .onChange(of: controller.dpi) { _, new in if new != 0 { dpiValue = Double(new) } }
         .onChange(of: controller.brightness) { _, new in brightnessValue = Double(new) }
+        .onChange(of: controller.dockBrightness) { _, new in dockBrightnessValue = Double(new) }
         // A failed device write leaves the controller's values unchanged, so no value-driven
         // onChange fires — snap the optimistic slider state back to reality explicitly.
         .onChange(of: controller.lastWriteFailure) { _, _ in
@@ -727,6 +731,49 @@ struct PopoverView: View {
         }
     }
 
+    private var dockCard: some View {
+        card {
+            VStack(alignment: .leading, spacing: 8) {
+                HStack {
+                    sectionLabel("Mouse Dock", "light.beacon.max")
+                    Spacer()
+                    Text(verbatim: "\(Int(dockBrightnessValue))%")
+                        .font(.system(size: 12, weight: .medium)).monospacedDigit()
+                        .foregroundStyle(.secondary)
+                }
+                HStack(spacing: 6) {
+                    Image(systemName: "sun.min.fill").font(.system(size: 10)).foregroundStyle(.secondary)
+                    Slider(value: $dockBrightnessValue, in: 0...100, step: 1) { editing in
+                        if !editing { controller.setDockBrightness(Int(dockBrightnessValue)) }
+                    }
+                    .tint(.razerGreen)
+                    .controlSize(.small)
+                    Image(systemName: "sun.max.fill").font(.system(size: 11)).foregroundStyle(.secondary)
+                }
+                HStack(spacing: 7) {
+                    ForEach(Array(swatches.enumerated()), id: \.offset) { _, sw in
+                        Circle()
+                            .fill(sw)
+                            .frame(width: 18, height: 18)
+                            .overlay(Circle().strokeBorder(Color.primary.opacity(0.15), lineWidth: 0.5))
+                            .overlay(Circle().inset(by: -2.5).stroke(Color.primary,
+                                lineWidth: controller.dockColor == sw.rgb && !controller.dockFollowsBattery ? 1.5 : 0))
+                            .onTapGesture { controller.setDockColor(sw.rgb) }
+                    }
+                    Spacer(minLength: 0)
+                }
+                if controller.dockFollowsBattery {
+                    Text("Battery mode active; selecting a colour switches to manual mode.")
+                        .font(.system(size: 10)).foregroundStyle(.secondary)
+                }
+                if controller.dockWriteFailed {
+                    Text("The dock did not accept the last command.")
+                        .font(.system(size: 10)).foregroundStyle(Color.batteryLow)
+                }
+            }
+        }
+    }
+
     private func swatch(_ sw: Color) -> some View {
         Circle()
             .fill(sw)
@@ -778,8 +825,6 @@ struct PopoverView: View {
             .contentShape(Rectangle())
         }
         .buttonStyle(.plain)
-        .disabled(!controller.connected)
-        .opacity(controller.connected ? 1 : 0.45)
     }
 
     // MARK: Settings
@@ -792,6 +837,22 @@ struct PopoverView: View {
             )) {
                 Text("Show battery % in menu bar")
                     .font(.system(size: 12))
+            }
+            .toggleStyle(.switch)
+            .tint(.razerGreen)
+            .controlSize(.small)
+
+            Divider().opacity(0.4)
+
+            Toggle(isOn: Binding(
+                get: { controller.dockFollowsBattery },
+                set: { controller.dockFollowsBattery = $0 }
+            )) {
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Dock follows battery").font(.system(size: 12))
+                    Text("Red <30% · amber <70% · green ≥70%")
+                        .font(.system(size: 10)).foregroundStyle(.secondary)
+                }
             }
             .toggleStyle(.switch)
             .tint(.razerGreen)

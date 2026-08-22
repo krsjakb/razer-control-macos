@@ -1,5 +1,13 @@
 # Razer mouse control for macOS
 
+## DeathAdder V2 Pro + Mouse Dock build
+
+This fork adds hardware-verified support for the Razer DeathAdder V2 Pro wireless
+(`1532:007D`) and first-generation Razer Mouse Dock (`1532:007E`). The dock has independent
+static colour and brightness controls, plus an optional red/amber/green battery indicator.
+The Back/Forward buttons are available immediately in Configure Buttons and can be mapped to
+shortcuts or macOS media keys. Button remapping requires Accessibility permission.
+
 A native menu bar app to control Razer mice on macOS. Razer does ship a Synapse for Mac now,
 but its [supported-device list](https://mysupport.razer.com/app/answers/detail/a_id/14809/~/razer-synapse-for-mac-supported-and-compatible-devices)
 is short and doesn't include the Cobra HyperSpeed or Atheris — this fills that gap. It talks

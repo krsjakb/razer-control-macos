@@ -152,6 +152,32 @@ final class HIDDevice {
         return HIDDevice(device: chosen)
     }
 
+    /// Open the 90-byte control interface of one explicit Razer product. Used for accessories
+    /// such as the Mouse Dock while the regular control channel remains bound to the mouse.
+    static func open(vendorId: Int, productId: Int) throws -> HIDDevice {
+        let devices = matchingDevices(vendorId: vendorId).filter {
+            intProp($0, kIOHIDProductIDKey) == productId
+        }
+        guard !devices.isEmpty else { throw HIDError.notFound }
+        let candidates = devices.enumerated().filter {
+            (intProp($0.element, kIOHIDMaxFeatureReportSizeKey) ?? 0) >= HIDDeviceSelection.controlReportSize
+        }
+        guard let chosen = candidates.max(by: {
+            let lhs = HIDInterfaceInfo(pid: productId, locationID: 0,
+                usagePage: intProp($0.element, kIOHIDPrimaryUsagePageKey) ?? 0,
+                usage: intProp($0.element, kIOHIDPrimaryUsageKey) ?? 0,
+                maxFeatureReportSize: intProp($0.element, kIOHIDMaxFeatureReportSizeKey) ?? 0)
+            let rhs = HIDInterfaceInfo(pid: productId, locationID: 0,
+                usagePage: intProp($1.element, kIOHIDPrimaryUsagePageKey) ?? 0,
+                usage: intProp($1.element, kIOHIDPrimaryUsageKey) ?? 0,
+                maxFeatureReportSize: intProp($1.element, kIOHIDMaxFeatureReportSizeKey) ?? 0)
+            return HIDDeviceSelection.controlScore(lhs) < HIDDeviceSelection.controlScore(rhs)
+        })?.element else { throw HIDError.notFound }
+        let openResult = IOHIDDeviceOpen(chosen, IOOptionBits(kIOHIDOptionsTypeNone))
+        guard openResult == kIOReturnSuccess else { throw HIDError.openFailed(openResult) }
+        return HIDDevice(device: chosen)
+    }
+
     /// Wait between SetReport and GetReport, in microseconds. Cobra Pro / HyperSpeed route
     /// through `RAZER_NEW_MOUSE_RECEIVER_WAIT_US` = 31000µs in OpenRazer. Too short a wait
     /// returns status 0x01 (BUSY) with empty arguments.

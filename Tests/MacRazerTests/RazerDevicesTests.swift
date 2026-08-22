@@ -5,6 +5,17 @@ import XCTest
 @testable import MacRazer
 
 final class RazerDevicesTests: XCTestCase {
+    func testDeathAdderV2ProRegistry() {
+        let wireless = RazerDevices.info(pid: 0x007D)
+        XCTAssertEqual(wireless?.name, "Razer DeathAdder V2 Pro")
+        XCTAssertEqual(wireless?.maxDPI, 20_000)
+        XCTAssertEqual(wireless?.transactionId, 0x3f)
+        XCTAssertEqual(wireless?.matrixTransactionId, 0x3f)
+        XCTAssertTrue(wireless?.hasBattery == true)
+
+        let wired = RazerDevices.info(pid: 0x007C)
+        XCTAssertEqual(wired?.connection, .wired)
+    }
     /// Transaction ids go on the wire for every command (stamped in HIDDevice.send) — pin
     /// them so a registry edit can't silently change the protocol for a verified model.
     /// The misc class (0x07 here) and the extended-matrix class (0x0F) are checked

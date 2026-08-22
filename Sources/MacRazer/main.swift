@@ -168,6 +168,38 @@ case "battery":
         exit(2)
     }
 
+case "dock-static":
+    guard let hex = args.dropFirst().first, hex.count == 6,
+          let value = UInt32(hex, radix: 16) else {
+        print("Usage: dock-static rrggbb")
+        exit(2)
+    }
+    do {
+        let dock = try HIDDevice.open(vendorId: Razer.vendorId, productId: 0x007E)
+        defer { dock.close() }
+        let rgb = RGB(r: UInt8((value >> 16) & 0xff), g: UInt8((value >> 8) & 0xff), b: UInt8(value & 0xff))
+        _ = try dock.sendWithRetry(RazerCommands.setStatic(rgb: rgb))
+        print("Dock colour set to #\(hex.uppercased())")
+    } catch {
+        print("Dock command failed: \(error)")
+        exit(2)
+    }
+
+case "dock-brightness":
+    guard let value = args.dropFirst().first.flatMap(Int.init), (0...100).contains(value) else {
+        print("Usage: dock-brightness 0-100")
+        exit(2)
+    }
+    do {
+        let dock = try HIDDevice.open(vendorId: Razer.vendorId, productId: 0x007E)
+        defer { dock.close() }
+        _ = try dock.sendWithRetry(RazerCommands.setBrightness(
+            RazerCommands.brightnessRaw(fromPercent: value), led: RazerCommands.zeroLed))
+        print("Dock brightness set to \(value)%")
+    } catch {
+        print("Dock brightness command failed: \(error)")
+        exit(2)
+    }
 case "dpi":
     guard let dev = openDevice() else { exit(1) }
     defer { dev.close() }

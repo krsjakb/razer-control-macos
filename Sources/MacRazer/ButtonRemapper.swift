@@ -63,7 +63,9 @@ final class ButtonRemapper: ObservableObject, @unchecked Sendable {
         let k = key ?? "none"
         guard k != activeKey else { return }
         activeKey = k
-        seenButtons = [] // detected buttons are per-device
+        // Standard Back/Forward buttons are CGEvent numbers 3/4. Show them immediately so
+        // the configuration page is usable without a successful discovery click first.
+        seenButtons = k == "none" ? [] : [3, 4]
         loadMappings()
     }
 

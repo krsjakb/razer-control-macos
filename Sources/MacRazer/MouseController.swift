@@ -24,6 +24,9 @@ final class MouseController: ObservableObject, @unchecked Sendable {
     /// lighting the mouse never took).
     @Published private(set) var effect: LightingEffect = .staticColor
     @Published private(set) var lightingColor = RGB(r: 0x44, g: 0xD6, b: 0x2C) // razer green
+    @Published private(set) var dockColor = RGB(r: 0x44, g: 0xD6, b: 0x2C)
+    @Published private(set) var dockBrightness = 100
+    @Published private(set) var dockWriteFailed = false
     @Published private(set) var dpiStages: [Int] = [] // the mouse's configured DPI presets
     @Published private(set) var timeEstimate: String?
     /// Snapshots of `io`-queue-owned history, republished on the main queue for the usage graph.
@@ -79,8 +82,19 @@ final class MouseController: ObservableObject, @unchecked Sendable {
         }
     }
 
+    /// Keep the first-generation Mouse Dock colour in sync with the mouse battery band.
+    @Published var dockFollowsBattery: Bool = (UserDefaults.standard.object(forKey: "dockFollowsBattery") as? Bool) ?? true {
+        didSet {
+            UserDefaults.standard.set(dockFollowsBattery, forKey: "dockFollowsBattery")
+            if dockFollowsBattery, let pct = batteryPercent {
+                io.async { [weak self] in self?.updateDockBatteryColour(percent: pct, force: true) }
+            }
+        }
+    }
+
     private let io = DispatchQueue(label: "com.macrazer.hid")
     private var device: HIDDevice?
+    private var lastDockBatteryBand: Int?
     private var pollTimer: Timer?
     private var history = BatteryHistory(deviceKey: "default")
     private var cycleHistory = ChargeCycleHistory(deviceKey: "default")
@@ -273,6 +287,7 @@ final class MouseController: ObservableObject, @unchecked Sendable {
 
         case .reading(let pct, let isCharging, let recordSample):
             if recordSample { history.record(percent: pct, charging: isCharging) }
+            if dockFollowsBattery { updateDockBatteryColour(percent: pct) }
             let estimate = isCharging ? "Charging" : history.estimateString(currentPercent: pct, curveModel: curveModel)
             let snap = historySnapshot()
             publishConnected {
@@ -315,6 +330,23 @@ final class MouseController: ObservableObject, @unchecked Sendable {
                 if self.hasBaseline && wasConnected { Self.playSound(connected: false) }
                 self.hasBaseline = true
             }
+        }
+    }
+
+    /// Red below 30%, amber from 30–69%, green from 70%. Only writes when the band changes,
+    /// so normal 15-second battery polling does not spam the dock with redundant reports.
+    private func updateDockBatteryColour(percent: Int, force: Bool = false) {
+        let band: Int
+        let rgb: RGB
+        switch percent {
+        case ..<30: band = 0; rgb = RGB(r: 0xff, g: 0x35, b: 0x00)
+        case ..<70: band = 1; rgb = RGB(r: 0xff, g: 0x9f, b: 0x0a)
+        default:    band = 2; rgb = RGB(r: 0x34, g: 0xc7, b: 0x59)
+        }
+        guard force || band != lastDockBatteryBand else { return }
+        if withDock({ try $0.sendWithRetry(RazerCommands.setStatic(rgb: rgb)) }) {
+            lastDockBatteryBand = band
+            publish { self.dockColor = rgb; self.dockWriteFailed = false }
         }
     }
 
@@ -446,6 +478,44 @@ final class MouseController: ObservableObject, @unchecked Sendable {
         sendLighting(RazerCommands.setStatic(rgb: rgb)) {
             self.effect = .staticColor
             self.lightingColor = rgb
+        }
+    }
+
+    func setDockColor(_ rgb: RGB) {
+        dockFollowsBattery = false
+        io.async { [weak self] in
+            guard let self else { return }
+            let ok = self.withDock { try $0.sendWithRetry(RazerCommands.setStatic(rgb: rgb)) }
+            self.publish {
+                self.dockWriteFailed = !ok
+                if ok { self.dockColor = rgb; self.lastDockBatteryBand = nil }
+            }
+        }
+    }
+
+    func setDockBrightness(_ percent: Int) {
+        let pct = max(0, min(percent, 100))
+        io.async { [weak self] in
+            guard let self else { return }
+            let report = RazerCommands.setBrightness(
+                RazerCommands.brightnessRaw(fromPercent: pct), led: RazerCommands.zeroLed)
+            let ok = self.withDock { try $0.sendWithRetry(report) }
+            self.publish {
+                self.dockWriteFailed = !ok
+                if ok { self.dockBrightness = pct }
+            }
+        }
+    }
+
+    private func withDock(_ operation: (HIDDevice) throws -> RazerReport) -> Bool {
+        do {
+            let dock = try HIDDevice.open(vendorId: Razer.vendorId, productId: 0x007E)
+            defer { dock.close() }
+            _ = try operation(dock)
+            return true
+        } catch {
+            FileHandle.standardError.write(Data("[MacRazer] dock command failed: \(error)\n".utf8))
+            return false
         }
     }
 
