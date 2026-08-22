@@ -25,6 +25,11 @@ cp "${BIN}" "${APP}/Contents/MacOS/${EXEC_NAME}"
 cp Packaging/Info.plist "${APP}/Contents/Info.plist"
 [ -f Packaging/AppIcon.icns ] && cp Packaging/AppIcon.icns "${APP}/Contents/Resources/AppIcon.icns"
 
+# Finder/File Provider provenance xattrs can be inherited from the source checkout. codesign
+# rejects those as "resource fork, Finder information, or similar detritus", leaving a
+# half-signed app that TCC can never match reliably. Strip bundle xattrs before signing.
+xattr -cr "${APP}"
+
 # Prefer a stable self-signed identity (created by Scripts/setup-signing.sh) so the
 # Input Monitoring grant persists across rebuilds. Fall back to ad-hoc otherwise.
 SIGN_ID="MacRazer Self-Signed"
