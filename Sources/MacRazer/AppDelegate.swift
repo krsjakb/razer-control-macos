@@ -126,7 +126,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate, NSPopoverDelegate {
         controller.$connected
             .removeDuplicates()
             .receive(on: RunLoop.main)
-            .sink { [weak self] connected in self?.remapper.remappingPaused = !connected }
+            .sink { [weak self] connected in
+                self?.remapper.remappingPaused = !connected
+                // The HID connection is also the most reliable Input Monitoring check on
+                // systems where IOHIDCheckAccess keeps returning a stale value.
+                self?.permissions.recheck()
+            }
             .store(in: &cancellables)
 
         // Update check: once now (throttled internally to once/24h), then a daily timer so a

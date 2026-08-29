@@ -55,7 +55,11 @@ final class PermissionsModel: ObservableObject {
     /// Re-read both permissions from the system. Call on launch, when the setup window appears,
     /// and whenever the app returns to the foreground (e.g. back from System Settings).
     func recheck() {
-        inputMonitoring = IOHIDCheckAccess(kIOHIDRequestTypeListenEvent) == kIOHIDAccessTypeGranted
+        // IOHIDCheckAccess can remain stale after an app update/re-sign even though opening the
+        // device already succeeds. A live controller connection is stronger evidence than the
+        // cached TCC answer, so accept either signal.
+        let apiGranted = IOHIDCheckAccess(kIOHIDRequestTypeListenEvent) == kIOHIDAccessTypeGranted
+        inputMonitoring = apiGranted || controller?.connected == true
         // refreshAccessibility also (re)installs the event tap once granted.
         remapper?.refreshAccessibility(prompt: false)
         accessibility = remapper?.accessibilityGranted ?? accessibility

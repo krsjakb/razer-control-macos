@@ -100,13 +100,16 @@ final class ButtonRemapper: ObservableObject, @unchecked Sendable {
     /// Re-check the Accessibility grant (call when the window appears / returns to front).
     func refreshAccessibility(prompt: Bool) {
         // Use the literal key to avoid touching the non-Sendable global CFString symbol.
-        let granted = AXIsProcessTrustedWithOptions(["AXTrustedCheckOptionPrompt": prompt] as CFDictionary)
-        accessibilityGranted = granted
-        if granted && tap == nil {
+        let apiGranted = AXIsProcessTrustedWithOptions(["AXTrustedCheckOptionPrompt": prompt] as CFDictionary)
+        if apiGranted && tap == nil {
             installTap()
-        } else if !granted && tap != nil {
-            removeTap()
+        } else if !apiGranted && tap == nil {
+            // AXIsProcessTrusted can lag behind System Settings after replacing/re-signing an
+            // app. Creating the event tap is the authoritative operational check: macOS returns
+            // nil when permission is genuinely unavailable.
+            installTap()
         }
+        accessibilityGranted = apiGranted || tap != nil
     }
 
     /// Tears down the event tap and its run-loop source — called when Accessibility is revoked
