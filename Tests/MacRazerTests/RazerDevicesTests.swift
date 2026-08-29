@@ -38,6 +38,10 @@ final class RazerDevicesTests: XCTestCase {
         XCTAssertEqual(txn(0x00A3, misc), 0xff)
         XCTAssertEqual(txn(0x00A3, 0x00), 0xff)
         XCTAssertEqual(txn(0x00A3, matrix), 0x1f)
+        // DeathAdder V2 Pro uses 0xFF specifically for the legacy dock charging overlay.
+        XCTAssertEqual(txn(0x007D, 0x03, 0x01), 0xff)
+        XCTAssertEqual(txn(0x007D, 0x03, 0x10), 0xff)
+        XCTAssertEqual(txn(0x007D, misc), 0x3f)
         // Basilisk V3: 0x1f everywhere EXCEPT the DPI-stages pair (per-command override,
         // shared with the plain Cobra's 0xFF group in razermouse_driver.c).
         XCTAssertEqual(txn(0x0099, 0x04, 0x05), 0x1f) // set DPI

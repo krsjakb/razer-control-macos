@@ -73,6 +73,26 @@ enum RazerCommands {
         RazerReport(commandClass: 0x07, commandId: 0x84, dataSize: 0x02)
     }
 
+    /// Select the dedicated dock charging-colour effect. The first-generation Mouse Dock
+    /// overlays this while the mouse is seated, so setting only its normal matrix colour
+    /// leaves the firmware's default (blue) visible at full charge.
+    static func setDockChargingEffect(enabled: Bool) -> RazerReport {
+        var r = RazerReport(commandClass: 0x03, commandId: 0x10, dataSize: 0x01)
+        r.arguments[0] = enabled ? 0x01 : 0x00
+        return r
+    }
+
+    /// Set the wireless charging indicator colour (NOSTORE, BATTERY_LED 0x03, RGB).
+    static func setDockChargingColor(_ rgb: RGB) -> RazerReport {
+        var r = RazerReport(commandClass: 0x03, commandId: 0x01, dataSize: 0x05)
+        r.arguments[0] = Razer.nostore
+        r.arguments[1] = 0x03
+        r.arguments[2] = rgb.r
+        r.arguments[3] = rgb.g
+        r.arguments[4] = rgb.b
+        return r
+    }
+
     /// razer_chroma_misc_set_dpi_xy(VARSTORE, dpi_x, dpi_y)
     ///   get_razer_report(0x04, 0x05, 0x07); args: [VARSTORE, x_hi, x_lo, y_hi, y_lo, 0, 0]
     /// DPI is clamped 100..45000 in the driver, so ARBITRARY DPI is supported (not just the

@@ -344,9 +344,15 @@ final class MouseController: ObservableObject, @unchecked Sendable {
         default:    band = 2; rgb = RGB(r: 0x34, g: 0xc7, b: 0x59)
         }
         guard force || band != lastDockBatteryBand else { return }
+        // The dock has two colour paths: its ordinary matrix effect and a charging overlay
+        // controlled through the paired wireless mouse. Set both, otherwise the overlay's
+        // firmware-default blue wins whenever the mouse is seated/fully charged.
+        let chargingOverlayOK = (try? ensureDevice().sendWithRetry(
+            RazerCommands.setDockChargingEffect(enabled: true))) != nil
+            && (try? ensureDevice().sendWithRetry(RazerCommands.setDockChargingColor(rgb))) != nil
         if withDock({ try $0.sendWithRetry(RazerCommands.setStatic(rgb: rgb)) }) {
             lastDockBatteryBand = band
-            publish { self.dockColor = rgb; self.dockWriteFailed = false }
+            publish { self.dockColor = rgb; self.dockWriteFailed = !chargingOverlayOK }
         }
     }
 

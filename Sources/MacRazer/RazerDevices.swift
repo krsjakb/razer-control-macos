@@ -69,7 +69,7 @@ enum RazerDevices {
         // so keeping both mouse PIDs in the registry also makes device selection prefer the
         // actual mouse instead of accidentally sending battery commands to the dock.
         .init(pid: 0x007C, name: "Razer DeathAdder V2 Pro (Wired)", fullySupported: true, hasBattery: true, hasLighting: true, maxDPI: 20000, transactionId: 0x3f, matrixTransactionId: 0x3f, connection: .wired, silhouette: .cobraPro, dischargeCurveModelKey: nil),
-        .init(pid: 0x007D, name: "Razer DeathAdder V2 Pro", fullySupported: true, hasBattery: true, hasLighting: true, maxDPI: 20000, transactionId: 0x3f, matrixTransactionId: 0x3f, connection: .wirelessDongle, silhouette: .cobraPro, dischargeCurveModelKey: nil),
+        .init(pid: 0x007D, name: "Razer DeathAdder V2 Pro", fullySupported: true, hasBattery: true, hasLighting: true, maxDPI: 20000, transactionId: 0x3f, matrixTransactionId: 0x3f, transactionOverrides: [0x0301: 0xff, 0x0310: 0xff], connection: .wirelessDongle, silhouette: .cobraPro, dischargeCurveModelKey: nil),
         // 0x1f throughout: hardware-verified on the HyperSpeed (both PIDs), and what
         // OpenRazer uses for the whole Cobra Pro family.
         .init(pid: 0x00DB, name: "Razer Cobra HyperSpeed", fullySupported: true, hasBattery: true, hasLighting: true, maxDPI: 26000, transactionId: 0x1f, matrixTransactionId: 0x1f, connection: .wirelessDongle, silhouette: .cobraPro, dischargeCurveModelKey: "cobra-hyperspeed"),

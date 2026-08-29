@@ -56,6 +56,19 @@ final class RazerCommandsTests: XCTestCase {
         XCTAssertEqual(RazerCommands.batteryPercent(fromRaw: 128), 50)
     }
 
+    func testDockChargingCommands() {
+        let green = RGB(r: 0, g: 255, b: 0)
+        let effect = RazerCommands.setDockChargingEffect(enabled: true)
+        XCTAssertEqual(effect.commandClass, 0x03)
+        XCTAssertEqual(effect.commandId, 0x10)
+        XCTAssertEqual(effect.arguments[0], 0x01)
+
+        let color = RazerCommands.setDockChargingColor(green)
+        XCTAssertEqual(color.commandClass, 0x03)
+        XCTAssertEqual(color.commandId, 0x01)
+        XCTAssertEqual(Array(color.arguments.prefix(5)), [0x00, 0x03, 0x00, 0xff, 0x00])
+    }
+
     func testDPIEncodeParseRoundTrip() {
         // The response layout mirrors the set layout, so parseDPI(setDPI(...)) round-trips.
         let report = RazerCommands.setDPI(x: 1600, y: 3200)
