@@ -14,8 +14,11 @@ final class UpdateChecker: ObservableObject {
     @Published private(set) var isDownloading = false
     @Published var downloadError: String?
 
-    private let releaseAPIURL = URL(string: "https://api.github.com/repos/SorcRR/MacRazer/releases/latest")!
-    private let dmgURL = URL(string: "https://github.com/SorcRR/MacRazer/releases/latest/download/MacRazer.dmg")!
+    // This fork has device-specific DeathAdder V2 Pro + Mouse Dock support. Updating from the
+    // upstream project replaces those changes with a generic build and makes the dock win HID
+    // selection again. Only accept releases from the fork that contains our device registry.
+    private let releaseAPIURL = URL(string: "https://api.github.com/repos/krsjakb/razer-control-macos/releases/latest")!
+    private let dmgURL = URL(string: "https://github.com/krsjakb/razer-control-macos/releases/latest/download/MacRazer.dmg")!
     private let checkInterval: TimeInterval = 24 * 60 * 60
 
     private static let dismissedKey = "dismissedUpdateVersion"
